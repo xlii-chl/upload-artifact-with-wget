@@ -16,40 +16,59 @@ inputs:
   path:
     description: 'A file, directory or wildcard pattern that describes what to upload'
     required: true
+  compression:
+    description: 'Set to false to upload the (already zipped) file directly. (default: true)'
+    default: true
+  compression-level:
+    description: 'The level of compression for Zlib to be applied to the artifact archive (between 0 and 9).'
+    default: '6'
 
 outputs:
   artifact-id:
     description: A unique identifier for the artifact that was just uploaded. Empty if the artifact upload failed.
 
 runs:
+  using: 'composite'
   steps:
     - name: Upload artifact (using v4)
+      shell: sh
       run: |
         # Some optional help for debugging.
         set -ex
 
-        # Zip the files
-        printf "%s\n" "$GITHUB_OUTPUT"
-        printf "%s\n" ${{ inputs.path }}
-        return
+        # Compress the input paths into a zip archive
+        # (note: busybox' mktemp doesn't have the --suffix option)
+        MYUPLOAD="$( mktemp -u ).zip"
+        if [ "${{ inputs.compression }}" == "true" ]; then
+          # inputs.path can be a list of files (with wildcards and spaces) and
+          # the shell's command substitution + field splitting + pathname
+          # expansion gives a behaviour pretty close to the original Github's
+          # action.
+          # (TODO: the original can also do exclude patterns)
+          zip -r -"${{ inputs.compression-level }}" "$MYUPLOAD" -- $( echo "${{ inputs.path }}" ) ;
+        else
+          MYUPLOAD="${{ inputs.path }}"
+        fi
 
         # General note:
-        # instead of using a proper JSON parser like 'jq', we use the readily
+        # instead of using a proper JSON parser like 'jq', we use the generally
         # available 'sed' in order to help this code being more easily reusable
-        # (at the cost of a breaking if the JSON formating happens to
-        # change...)
+        # (at the cost of and breaking if the JSON formating happens to change,
+        # and readability...)
 
-        # We extract the 'Actions.Results:22:33' from ACTIONS_RUNTIME_TOKEN
+        # First we extract the second field from the token (e.g. xxx.yyy.zzz),
+        # then we de-base64 and last, we extract the two id from
+        # 'Actions.Results:22:33'
         # (note: base64 -d doesn't like when the '==' padding is missing, so 2>/dev/null and relying on the piping to forget about non-zero return code...)
         read WORKFLOW_RUN_BACKEND_ID WORKFLOW_JOB_RUN_BACKEND_ID <<EOF
         $( echo "$ACTIONS_RUNTIME_TOKEN" | sed 's/.*\.\(.*\)\..*/\1/' | base64 -d 2>/dev/null | sed 's/.*Actions.Results:\([^:]\+\):\([^:" ]\+\).*/\1 \2/' )
         EOF
 
-        # Get the upload URL
+        # Request an upload URL
         RESPONSE="$( wget -O - \
           --header 'Content-Type:application/json' \
           --header "Authorization: Bearer $GITHUB_TOKEN" \
-          --post-data "$( printf '{"version":4, "name":"%s", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "$MYFILENAME" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
+          --post-data "$( printf '{"version":4, "name":"%s", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "${{ inputs.name }}" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
           "$GITHUB_SERVER_URL"/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
         )"
         # We get a JSON with an signedUploadUrl similar to :
@@ -58,15 +77,23 @@ runs:
 
         # Upload our file
         # (note: adding '&comp=block' at the end of the URL)
-        wget --method PUT --body-file "$MYFILENAME" "$SIGNED_UPLOAD_URL&comp=block"
+        # (note 2: if it fails here, it probably means you are using the busybox
+        #          variant of wget which can't (as of 2024-08-26) use the PUT method.
+        #          Install the full one beforehand : apt install wget / pkg add wget / ...)
+        wget --method PUT --body-file "$MYUPLOAD" "$SIGNED_UPLOAD_URL&comp=block"
 
         # Finalize the artifact
         RESPONSE="$( wget -O - \
           --header 'Content-Type:application/json' \
           --header "Authorization: Bearer $GITHUB_TOKEN" \
-          --post-data "$( printf '{"hash":"sha256:%s", "name":"%s", "size":"%d", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "$( sha256sum $MYFILENAME | sed 's/[[:space:]]\+.*//' )" "$MYFILENAME" "$( stat -c %s $MYFILENAME )" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
+          --post-data "$( printf '{"hash":"sha256:%s", "name":"%s", "size":"%d", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "$( sha256sum $MYUPLOAD | sed 's/[[:space:]]\+.*//' )" "${{ inputs.name }}" "$( stat -c %s $MYUPLOAD )" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
           "$GITHUB_SERVER_URL"/twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
         )"
 
         # Store the outputs
         echo artifact-id="$( echo "$RESPONSE" | sed -n 's/.*"artifactId" *: *"\([^"]\+\)".*/\1/p' )" >> $GITHUB_OUTPUT
+
+        # Cleanup
+        if [ "${{ inputs.compression }}" == "true" ]; then
+          rm -f "$MYUPLOAD"
+        fi
