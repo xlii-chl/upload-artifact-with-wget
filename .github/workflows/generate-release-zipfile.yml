@@ -1,0 +1,64 @@
+on:
+  push:
+
+jobs:
+  GenerateReleaseZipfile:
+    runs-on: docker
+    container:
+      image: entrepot.xlii.si/actions/alpine-wget-git-zip:latest
+    steps:
+      - name: Generate some content
+        run: |
+          set -ex
+          mkdir toto
+          echo tata > toto/tata.txt
+          echo titi > toto/titi.txt
+          echo titi titi > "toto/titi titi.txt"
+          echo tutu > tutu.txt
+          echo tutu >> tutu.txt
+          echo tutuuuuu >> tutu2.txt
+          echo tutuuuuu >> "tutu tutu.txt"
+          echo ratata >> 'tutu tutu*.txt'
+          ls -R
+
+      - name: Testing the artifact uploading
+        id: "uploading"
+        uses: "${{ github.server_url }}/${{ github.repository }}@${{ github.sha }}"
+        with:
+          path: |
+            toto
+            tutu*
+
+      - name: Is there any output for the previous step ?
+        run: |
+          set -x
+          printf "steps.uploading.outputs.artifact-id: %s\n" "${{ steps.uploading.outputs.artifact-id }}"
+          printf "steps.uploading.outputs.artifact-url: %s\n" "${{ steps.uploading.outputs.artifact-url }}"
+
+      - name: Check the content of the uploaded artifact
+        run: |
+          # Stop at first error and be verbose 
+          set -ex
+
+          # Create some temporary files/directory
+          DOWNLOAD_FILE="$( mktemp )"
+          SHASUM_FILE="$( mktemp )"
+          TEST_ARTIFACT_DIR="$( mktemp -d )"
+
+          # Get the fingerprint of our test
+          find . -type f -exec sha256sum \{\} \;  > "$SHASUM_FILE"
+          # Little optional checkup
+          cat "$SHASUM_FILE"
+
+          cd "$TEST_ARTIFACT_DIR"
+          # In case the repository becomes private, we add our GITHUB_TOKEN to the artifact-url.
+          MY_AUTHENTICATED_URL="$( echo "${{ steps.uploading.outputs.artifact-url }}" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
+          wget -O "$DOWNLOAD_FILE" "$MY_AUTHENTICATED_URL"
+          unzip "$DOWNLOAD_FILE"
+          sha256sum -c "$SHASUM_FILE"
+
+          # Cleanup
+          cd -
+          rm -f "$DOWNLOAD_FILE"
+          rm -f "$SHASUM_FILE"
+          rm -rf "$TEST_ARTIFACT_DIR"
