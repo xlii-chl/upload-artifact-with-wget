@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: 0BSD
-name: "Upload artifact with wget"
-author: "Chl <chl@xlii.si>"
+name: "Upload an artifact with wget"
+author: "Chl"
 
 description: |
   Upload an artifact for a workflow.
 
-  This is a far lighter version of upload-artifact, it only need a shell, zip
+  This is a lighter version of upload-artifact, it only needs a shell, zip
   and the full version of wget (unfortunately, as of 2024-08-26, the busybox
   variant isn't capable of using the PUT method).
 
@@ -17,7 +17,7 @@ inputs:
     description: 'A file, directory or wildcard pattern that describes what to upload'
     required: true
   compression:
-    description: 'Set to false to upload the (already zipped) file directly. (default: true)'
+    description: 'Set to false to upload the (already zipped by yourself) file directly. (default: true)'
     default: true
   compression-level:
     description: 'The level of compression for Zlib to be applied to the artifact archive (between 0 and 9).'

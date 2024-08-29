@@ -12,6 +12,14 @@ the artifact uploading required a full blown NodeJS container.
 This actions won't copy all the features of the original NodeJS version but
 please report differences on the main ones.
 
+### Requirements
+
+This action needs the following executables:
+
+* zip (unless you zip the artifact yourself)
+* wget (the full version : unfortunately, as of 2024-08-26, the busybox variant isn't capable of using the PUT method)
+
+
 ### Inputs
 
 ```yaml
@@ -44,4 +52,20 @@ steps:
   with:
     name: my-artifact
     path: path/to/artifact/world.txt
+```
+
+## Miscellaneous
+
+If you seek a similar alternative for checkout, look at https://github.com/marketplace/actions/checkout-action or use the code below :
+```yaml
+steps:
+  - name: Simple checkout
+    run: |
+      git init
+      GITHUB_AUTHENTICATED_URL="$( echo "$GITHUB_SERVER_URL" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
+      git remote add origin "$GITHUB_AUTHENTICATED_URL"/"$GITHUB_REPOSITORY"
+      # Little and optional speed optimization
+      git config --local gc.auto 0
+      git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "$GITHUB_SHA"
+      git reset --hard "$GITHUB_SHA"
 ```

@@ -1,0 +1,35 @@
+on:
+  push:
+
+jobs:
+  GenerateReleaseZipfile:
+    runs-on: docker
+    container:
+      image: entrepot.xlii.si/actions/alpine-wget-git-zip:latest
+    steps:
+      - name: Generate some content
+        run: |
+          set -ex
+          mkdir toto
+          echo tata > toto/tata.txt
+          echo titi > toto/titi.txt
+          echo titi titi > "toto/titi titi.txt"
+          echo tutu > tutu.txt
+          echo tutu >> tutu.txt
+          echo tutuuuuu >> tutu2.txt
+          echo tutuuuuu >> "tutu tutu.txt"
+          echo ratata >> 'tutu tutu*.txt'
+          ls -R
+
+      - name: Testing the artifact uploading
+        id: "uploading"
+        uses: "https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4"
+        with:
+          path: |
+            toto
+            tutu*
+
+      - name: Is there any output for the previous step ?
+        run: |
+          set -x
+          printf "steps.uploading.outputs.artifact-id: %s\n" "${{ steps.uploading.outputs.artifact-id }}"
