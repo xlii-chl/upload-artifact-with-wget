@@ -9,21 +9,23 @@ the artifact uploading required a full blown NodeJS container.
 
 ## Usage
 
-This actions won't copy all the features of the original NodeJS version but
+This action won't copy all the features of the original NodeJS version but
 please report differences on the main ones.
 
 ### Requirements
 
 This action needs the following executables:
 
-* zip (unless you zip the artifact yourself)
-* wget (the full version : unfortunately, as of 2024-08-26, the busybox variant isn't capable of using the PUT method)
+* `zip` (unless you zip the artifact yourself)
+* `wget` (the full version : unfortunately, as of 2024-08-26, the busybox variant isn't capable of using the PUT method)
 
 
 ### Inputs
 
 ```yaml
-- uses: actions/upload-artifact@v4
+# If you can, give the full URL :
+# - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+- uses: actions/upload-artifact-with-wget@v4
   with:
     # Name of the artifact to upload.
     # Optional. Default is 'artifact'
@@ -32,6 +34,14 @@ This action needs the following executables:
     # A file, directory or wildcard pattern that describes what to upload
     # Required.
     path:
+
+    # If the artifact is already a zipfile, set to false.
+    # Optional. Default is true.
+    compression:
+
+    # Set the compression level of the zipfile.
+    # Optional. Default is '6'.
+    compression-level:
 ```
 
 ### Outputs
@@ -39,6 +49,7 @@ This action needs the following executables:
 | Name | Description | Example |
 | - | - | - |
 | `artifact-id` | GitHub ID of an Artifact, can be used by the REST API | `1234` |
+| `artifact-url` | URL to download an Artifact. | `https://github.com/example-org/example-repo/actions/runs/1/artifacts/1234` or `https://codeberg.org/forgejo/forgejo/actions/runs/1/artifacts/my-artifact` |
 
 ## Examples
 

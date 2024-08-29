@@ -37,7 +37,7 @@ jobs:
 
       - name: Check the content of the uploaded artifact
         run: |
-          # Stop at first error and be verbose 
+          # Stop at first error and be verbose
           set -ex
 
           # Create some temporary files/directory
