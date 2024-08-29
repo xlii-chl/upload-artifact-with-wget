@@ -80,7 +80,7 @@ runs:
         # (note 2: if it fails here, it probably means you are using the busybox
         #          variant of wget which can't (as of 2024-08-26) use the PUT method.
         #          Install the full one beforehand : apt install wget / pkg add wget / ...)
-        wget --method PUT --body-file "$MYUPLOAD" "$SIGNED_UPLOAD_URL&comp=block"
+        wget -O /dev/null --method PUT --body-file "$MYUPLOAD" "$SIGNED_UPLOAD_URL&comp=block"
 
         # Finalize the artifact
         RESPONSE="$( wget -O - \
@@ -91,7 +91,14 @@ runs:
         )"
 
         # Store the outputs
-        echo artifact-id="$( echo "$RESPONSE" | sed -n 's/.*"artifactId" *: *"\([^"]\+\)".*/\1/p' )" >> $GITHUB_OUTPUT
+        ARTIFACT_ID="$( echo "$RESPONSE" | sed -n 's/.*"artifactId" *: *"\([^"]\+\)".*/\1/p' )"
+        echo artifact-id="$ARTIFACT_ID" >> $GITHUB_OUTPUT
+        if [ "$GITHUB_SERVER_URL" = "https://github.com" ]; then
+          echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_ID"/artifacts/"$ARTIFACT_ID" >> $GITHUB_OUTPUT
+        else
+          # Gitea & Forgejo : github.run_number instead of github.run_id and name of the artifact instead of artifact_id
+          echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_NUMBER"/artifacts/"$INPUT_NAME" >> $GITHUB_OUTPUT
+        fi
 
         # Cleanup
         if [ "${{ inputs.compression }}" == "true" ]; then

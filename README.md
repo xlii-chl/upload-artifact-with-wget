@@ -62,8 +62,8 @@ steps:
   - name: Simple checkout
     run: |
       git init
-      GITHUB_AUTHENTICATED_URL="$( echo "$GITHUB_SERVER_URL" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
-      git remote add origin "$GITHUB_AUTHENTICATED_URL"/"$GITHUB_REPOSITORY"
+      MY_AUTHENTICATED_URL="$( echo "$GITHUB_SERVER_URL" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
+      git remote add origin "$MY_AUTHENTICATED_URL"/"$GITHUB_REPOSITORY"
       # Little and optional speed optimization
       git config --local gc.auto 0
       git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "$GITHUB_SHA"
