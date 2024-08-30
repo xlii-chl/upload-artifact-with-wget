@@ -25,21 +25,38 @@ inputs:
 
 outputs:
   artifact-id:
-    description: A unique identifier for the artifact that was just uploaded. Empty if the artifact upload failed.
+    description: A unique identifier for the artifact that was just uploaded.
+    value: ${{ steps.uploading.outputs.artifact-id }}
+  artifact-url:
+    description: The URL for the uploaded artifact. Access may require authorization.
+    value: ${{ steps.uploading.outputs.artifact-url }}
 
 runs:
   using: 'composite'
   steps:
+    # ACTIONS_RUNTIME_TOKEN is not yet available (2024-08) for composite actions on Github :
+    # https://github.com/actions/runner/issues/3046
+    # Forgejo tries to download this remote action even if it's not needed :
+    # uncomment if you want to run this action in Github.
+    #- name: Expose GitHub Runtime
+    #  if: env.ACTIONS_RUNTIME_TOKEN == ''
+    #  uses: "https://github.com/crazy-max/ghaction-github-runtime@v3"
+
     - name: Upload artifact (using v4)
       shell: sh
+      # id for reference in the outputs extraction
+      id: uploading
       run: |
         # Some optional help for debugging.
         set -ex
 
+        # Compatibility layer for Github
+        test -z "$GITHUB_TOKEN" && GITHUB_TOKEN="${{ github.token }}"
+
         # Compress the input paths into a zip archive
         # (note: busybox' mktemp doesn't have the --suffix option)
         MYUPLOAD="$( mktemp -u ).zip"
-        if [ "${{ inputs.compression }}" == "true" ]; then
+        if [ "${{ inputs.compression }}" = "true" ]; then
           # inputs.path can be a list of files (with wildcards and spaces) and
           # the shell's command substitution + field splitting + pathname
           # expansion gives a behaviour pretty close to the original Github's
@@ -64,36 +81,45 @@ runs:
         $( echo "$ACTIONS_RUNTIME_TOKEN" | sed 's/.*\.\(.*\)\..*/\1/' | base64 -d 2>/dev/null | sed 's/.*Actions.Results:\([^:]\+\):\([^:" ]\+\).*/\1 \2/' )
         EOF
 
+        # Github compatibility layer: ACTIONS_RESULTS_URL already ends with a '/'
+        ACTIONS_RESULTS_URL="$( echo "$ACTIONS_RESULTS_URL" | sed 's/\/$//' )"
+
         # Request an upload URL
         RESPONSE="$( wget -O - \
           --header 'Content-Type:application/json' \
-          --header "Authorization: Bearer $GITHUB_TOKEN" \
+          --header "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" \
           --post-data "$( printf '{"version":4, "name":"%s", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "${{ inputs.name }}" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
-          "$GITHUB_SERVER_URL"/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
+          "$ACTIONS_RESULTS_URL"/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
         )"
         # We get a JSON with an signedUploadUrl similar to :
         #  https://entrepot.xlii.si/twirp/github.actions.results.api.v1.ArtifactService/UploadArtifact?sig=yWWEI8tIIECp8D7E5TVh4_6G2pZxWaVdQcSYaCsx5s0=&expires=2024-08-26+07%3A20%3A49.886890537+%2B0200+CEST&artifactName=mymodule-1.2.3.zip&taskID=63
-        SIGNED_UPLOAD_URL="$( echo "$RESPONSE" | sed -n 's/.*"signedUploadUrl" *: *"\([^"]\+\)".*/\1/p' )"
+        SIGNED_UPLOAD_URL="$( echo "$RESPONSE" | sed -n 's/.*"signed_\?[uU]pload_\?[uU]rl" *: *"\([^"]\+\)".*/\1/p' )"
 
         # Upload our file
-        # (note: adding '&comp=block' at the end of the URL)
+        # (note: adding '&comp=block' at the end of the URL for Forgejo)
         # (note 2: if it fails here, it probably means you are using the busybox
         #          variant of wget which can't (as of 2024-08-26) use the PUT method.
         #          Install the full one beforehand : apt install wget / pkg add wget / ...)
-        wget -O /dev/null --method PUT --body-file "$MYUPLOAD" "$SIGNED_UPLOAD_URL&comp=block"
+        wget -O /dev/null \
+          --method PUT \
+          --body-file "$MYUPLOAD" \
+          --header "x-ms-blob-content-type: zip" \
+          --header "x-ms-blob-type: BlockBlob" \
+          "$SIGNED_UPLOAD_URL&comp=block"
 
         # Finalize the artifact
         RESPONSE="$( wget -O - \
           --header 'Content-Type:application/json' \
-          --header "Authorization: Bearer $GITHUB_TOKEN" \
+          --header "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" \
           --post-data "$( printf '{"hash":"sha256:%s", "name":"%s", "size":"%d", "workflow_run_backend_id":"%s", "workflow_job_run_backend_id":"%s"}' "$( sha256sum $MYUPLOAD | sed 's/[[:space:]]\+.*//' )" "${{ inputs.name }}" "$( stat -c %s $MYUPLOAD )" "$WORKFLOW_RUN_BACKEND_ID" "$WORKFLOW_JOB_RUN_BACKEND_ID" )" \
-          "$GITHUB_SERVER_URL"/twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
+          "$ACTIONS_RESULTS_URL"/twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
         )"
 
         # Store the outputs
-        ARTIFACT_ID="$( echo "$RESPONSE" | sed -n 's/.*"artifactId" *: *"\([^"]\+\)".*/\1/p' )"
+        ARTIFACT_ID="$( echo "$RESPONSE" | sed -n 's/.*"artifact_\?Id" *: *"\([^"]\+\)".*/\1/ip' )"
         echo artifact-id="$ARTIFACT_ID" >> $GITHUB_OUTPUT
         if [ "$GITHUB_SERVER_URL" = "https://github.com" ]; then
+          # note: as an alternative, there is https://api.github.com/repos/OWNER/REPO/actions/artifacts/ARTIFACT_ID
           echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_ID"/artifacts/"$ARTIFACT_ID" >> $GITHUB_OUTPUT
         else
           # Gitea & Forgejo : github.run_number instead of github.run_id and name of the artifact instead of artifact_id
@@ -101,6 +127,6 @@ runs:
         fi
 
         # Cleanup
-        if [ "${{ inputs.compression }}" == "true" ]; then
+        if [ "${{ inputs.compression }}" = "true" ]; then
           rm -f "$MYUPLOAD"
         fi

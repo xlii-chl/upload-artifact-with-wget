@@ -3,9 +3,9 @@ on:
 
 jobs:
   GenerateReleaseZipfile:
-    runs-on: docker
-    container:
-      image: entrepot.xlii.si/actions/alpine-wget-git-zip:latest
+    runs-on: ubuntu-latest
+    # Trying to help access to the artifact with the GITHUB_TOKEN at the last step but didn't help.
+    #permissions: read-all
     steps:
       - name: Generate some content
         run: |
@@ -18,18 +18,36 @@ jobs:
           echo tutu >> tutu.txt
           echo tutuuuuu >> tutu2.txt
           echo tutuuuuu >> "tutu tutu.txt"
-          echo ratata >> 'tutu tutu*.txt'
+          # Github doesn't like special characters.
+          #echo ratata >> 'tutu tutu*.txt'
           ls -R
+
+      - name: "Github requires checkout for 'uses: ./' (or we could hard write the repository's URL ?)"
+        run: |
+          mkdir myaction && cd myaction
+          git init
+          test -z "$GITHUB_TOKEN" && GITHUB_TOKEN="${{ github.token }}"
+          MY_AUTHENTICATED_URL="$( echo "$GITHUB_SERVER_URL" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
+          git remote add origin "$MY_AUTHENTICATED_URL"/"$GITHUB_REPOSITORY"
+          # Little and optional speed optimization
+          git config --local gc.auto 0
+          git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "$GITHUB_SHA"
+          git reset --hard "$GITHUB_SHA"
 
       - name: Testing the artifact uploading
         id: "uploading"
-        uses: "${{ github.server_url }}/${{ github.repository }}@${{ github.sha }}"
+        uses: ./myaction
+        # For comparison
+        #uses: actions/upload-artifact@v4
         with:
           path: |
             toto
             tutu*
 
-      - name: Is there any output for the previous step ?
+      - name: "Cleanup Github"
+        run: rm -rvf myaction
+
+      - name: Is there any output for the uploading step ?
         run: |
           set -x
           printf "steps.uploading.outputs.artifact-id: %s\n" "${{ steps.uploading.outputs.artifact-id }}"
@@ -37,7 +55,7 @@ jobs:
 
       - name: Check the content of the uploaded artifact
         run: |
-          # Stop at first error and be verbose 
+          # Stop at first error and be verbose
           set -ex
 
           # Create some temporary files/directory
@@ -52,8 +70,24 @@ jobs:
 
           cd "$TEST_ARTIFACT_DIR"
           # In case the repository becomes private, we add our GITHUB_TOKEN to the artifact-url.
-          MY_AUTHENTICATED_URL="$( echo "${{ steps.uploading.outputs.artifact-url }}" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
-          wget -O "$DOWNLOAD_FILE" "$MY_AUTHENTICATED_URL"
+          test -z "$GITHUB_TOKEN" && GITHUB_TOKEN="${{ github.token }}"
+          # TODO : can't get it to work :-/
+          #wget --header "Authorization: Bearer $GITHUB_TOKEN" -O "$DOWNLOAD_FILE" "${{ steps.uploading.outputs.artifact-url }}"
+
+          # Oh boy... We're gone beyond salvation but let's try to explain:
+          # - the api.github.com accepts the GITHUB_TOKEN in the Authorization
+          #   header (but not the ACTIONS_RUNTIME_TOKEN, nor the GITHUB_TOKEN as
+          #   part of the URL like https://$GITHUB_TOKEN@api.github.com/...)
+          # - ...but we get redirect to Windows.net/Azure data warehouse which refuses GITHUB_TOKEN...
+          # -> so, if the api.github.com fails, we try to extract the redirect location and hit it without any header.
+          # ('beginning to wonder if Github's changing master to main was also a part of a plot to complexify our lives...)
+          WGET_OUTPUT="$( wget -O "$DOWNLOAD_FILE" \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/${{ steps.uploading.outputs.artifact-id }}/zip" 2>&1 )" \
+          || wget -O "$DOWNLOAD_FILE" \
+            "$( echo "$WGET_OUTPUT" | sed -n 's/^Location: \(.*\) \[following\]/\1/p' | tail -n 1 )"
+
+          # unzip and check
           unzip "$DOWNLOAD_FILE"
           sha256sum -c "$SHASUM_FILE"
 
