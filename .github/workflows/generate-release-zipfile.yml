@@ -1,6 +1,7 @@
 on:
   push:
     branches:
+      - 'v4-github'
 
 jobs:
   GenerateReleaseZipfile:
