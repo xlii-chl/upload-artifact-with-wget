@@ -38,6 +38,7 @@ runs:
     # https://github.com/actions/runner/issues/3046
     # Forgejo tries to download this remote action even if it's not needed :
     # uncomment if you want to run this action in Github.
+    # (uncommented for Github's version)
     - name: Expose GitHub Runtime
       if: env.ACTIONS_RUNTIME_TOKEN == ''
       uses: crazy-max/ghaction-github-runtime@v3
