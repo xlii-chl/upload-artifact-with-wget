@@ -1,6 +1,9 @@
 on:
   push:
     branches:
+      # Difference between Github and Forgejo : with the former, an empty
+      # 'branches' key means "nothing" while the later understands it as "all".
+      - '*'
 
 jobs:
   GenerateReleaseZipfile:
