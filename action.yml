@@ -3,11 +3,10 @@ name: "Upload an artifact with wget"
 author: "Chl"
 
 description: |
-  Upload an artifact for a workflow.
+  Upload an artifact.
 
   This is a lighter version of upload-artifact, it only needs a shell, zip
-  and the full version of wget (unfortunately, as of 2024-08-26, the busybox
-  variant isn't capable of using the PUT method).
+  and the full version of wget.
 
 inputs:
   name:
