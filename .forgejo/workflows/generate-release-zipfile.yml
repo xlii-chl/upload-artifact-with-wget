@@ -1,9 +1,7 @@
 on:
   push:
     branches:
-      # Difference between Github and Forgejo : with the former, an empty
-      # 'branches' key means "nothing" while the later understands it as "all".
-      - '*'
+      - 'v4'
 
 jobs:
   GenerateReleaseZipfile:
@@ -58,6 +56,8 @@ jobs:
           # In case the repository becomes private, we add our GITHUB_TOKEN to the artifact-url.
           MY_AUTHENTICATED_URL="$( echo "${{ steps.uploading.outputs.artifact-url }}" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
           wget -O "$DOWNLOAD_FILE" "$MY_AUTHENTICATED_URL"
+
+          # unzip and check
           unzip "$DOWNLOAD_FILE"
           sha256sum -c "$SHASUM_FILE"
 
