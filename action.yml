@@ -100,12 +100,15 @@ runs:
         # (note 2: if it fails here, it probably means you are using the busybox
         #          variant of wget which can't (as of 2024-08-26) use the PUT method.
         #          Install the full one beforehand : apt install wget / pkg add wget / ...)
+        if [ "$GITHUB_SERVER_URL" != "https://github.com" ]; then
+          SIGNED_UPLOAD_URL="$SIGNED_UPLOAD_URL&comp=block"
+        fi
         wget -O /dev/null \
           --method PUT \
           --body-file "$MYUPLOAD" \
           --header "x-ms-blob-content-type: zip" \
           --header "x-ms-blob-type: BlockBlob" \
-          "$SIGNED_UPLOAD_URL&comp=block"
+          "$SIGNED_UPLOAD_URL"
 
         # Finalize the artifact
         RESPONSE="$( wget -O - \
