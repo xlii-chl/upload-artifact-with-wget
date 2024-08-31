@@ -8,6 +8,10 @@ description: |
   This is a lighter version of upload-artifact, it only needs a shell, zip
   and the full version of wget.
 
+branding:
+  icon: archive
+  color: gray-dark
+
 inputs:
   name:
     description: 'Artifact name'
