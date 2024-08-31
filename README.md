@@ -73,6 +73,8 @@ steps:
   - name: Simple checkout
     run: |
       git init
+      # On Github, the token isn't readily available.
+      test -z "$GITHUB_TOKEN" && GITHUB_TOKEN="${{ github.token }}"
       MY_AUTHENTICATED_URL="$( echo "$GITHUB_SERVER_URL" | sed "s#^\(https\?://\)#\1$GITHUB_TOKEN\@#" )"
       git remote add origin "$MY_AUTHENTICATED_URL"/"$GITHUB_REPOSITORY"
       # Little and optional speed optimization
