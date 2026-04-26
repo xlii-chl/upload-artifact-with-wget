@@ -1,16 +1,18 @@
 # `@actions/upload-artifact-with-wget`
 
-Upload [actions artifacts](https://forgejo.org/docs/next/user/actions/#artifacts) from your workflows runs.
+Upload [actions artifacts](https://forgejo.org/docs/next/user/actions/#artifacts) from your workflow runs.
 
-This is a tryout to make a lighter version of
-[actions/upload-artifact](https://github.com/actions/upload-artifact) made for
-simple workflows where most of the work could run on a alpine shell and only
-the artifact uploading required a full blown NodeJS container.
+This is a lighter version of [actions/upload-artifact](https://github.com/actions/upload-artifact).
+It is made for simple workflows in self-hosted runners, where all the work was
+done in an Alpine container and bringing a NodeJS container just for the
+artifact upload was a bit wasteful.
+
 
 ## Usage
 
 This action won't copy all the features of the original NodeJS version but
 please report differences on the main ones.
+
 
 ### Requirements
 
@@ -23,8 +25,9 @@ This action needs the following executables:
 ### Inputs
 
 ```yaml
-# If you can, give the full URL :
+# Depending on your setup, you may have to specify the full URL or use the Github version :
 # - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+# - uses: actions/upload-artifact-with-wget@v4-github
 - uses: actions/upload-artifact-with-wget@v4
   with:
     # Name of the artifact to upload.

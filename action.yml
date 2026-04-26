@@ -126,13 +126,10 @@ runs:
         # Store the outputs
         ARTIFACT_ID="$( echo "$RESPONSE" | sed -n 's/.*"artifact_\?Id" *: *"\([^"]\+\)".*/\1/ip' )"
         echo artifact-id="$ARTIFACT_ID" >> $GITHUB_OUTPUT
-        if [ "$GITHUB_SERVER_URL" = "https://github.com" ]; then
-          # note: as an alternative, there is https://api.github.com/repos/OWNER/REPO/actions/artifacts/ARTIFACT_ID
-          echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_ID"/artifacts/"$ARTIFACT_ID" >> $GITHUB_OUTPUT
-        else
-          # Gitea & Forgejo : github.run_number instead of github.run_id and name of the artifact instead of artifact_id
-          echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_NUMBER"/artifacts/"$INPUT_NAME" >> $GITHUB_OUTPUT
-        fi
+        echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_ID"/artifacts/"$ARTIFACT_ID" >> $GITHUB_OUTPUT
+        # note: as an alternative, there is https://api.github.com/repos/OWNER/REPO/actions/artifacts/ARTIFACT_ID
+        # Gitea & Forgejo used to have github.run_number instead of github.run_id and name of the artifact instead of artifact_id but not anymore ?
+        # echo artifact-url="$GITHUB_SERVER_URL"/"$GITHUB_REPOSITORY"/actions/runs/"$GITHUB_RUN_ID"/artifacts/"$INPUT_NAME" >> $GITHUB_OUTPUT
 
         # Cleanup
         if [ "${{ inputs.compression }}" = "true" ]; then
