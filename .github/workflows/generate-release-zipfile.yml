@@ -2,6 +2,8 @@ on:
   push:
     branches:
       - 'v4-github'
+  # Manual launch
+  workflow_dispatch:
 
 jobs:
   GenerateReleaseZipfile:
