@@ -27,6 +27,7 @@ This action needs the following executables:
 ```yaml
 # Depending on your setup, you may have to specify the full URL or use the Github version :
 # - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+# - uses: https://codeberg.org/xlii/upload-artifact-wget@v4
 # - uses: actions/upload-artifact-with-wget@v4-github
 - uses: actions/upload-artifact-with-wget@v4
   with:
