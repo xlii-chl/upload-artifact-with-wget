@@ -62,14 +62,14 @@ This action needs the following executables:
 ```yaml
 jobs:
   UploadingArtifact:
-    runs-on: docker
+    runs-on: ubuntu-latest
     container:
       image: docker.io/alpine:latest
     steps:
       - run: mkdir -p path/to/artifact
       - run: echo hello > path/to/artifact/world.txt
       - run: apk add --no-cache wget zip
-      - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+      - uses: xlii-chl/upload-artifact-with-wget@v4-github
         with:
           name: my-artifact
           path: path/to/artifact/world.txt
