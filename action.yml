@@ -75,7 +75,7 @@ runs:
         # General note:
         # instead of using a proper JSON parser like 'jq', we use the generally
         # available 'sed' in order to help this code being more easily reusable
-        # (at the cost of and breaking if the JSON formating happens to change,
+        # (at the cost of breaking if the JSON formatting happens to change,
         # and readability...)
 
         # First we extract the second field from the token (e.g. xxx.yyy.zzz),

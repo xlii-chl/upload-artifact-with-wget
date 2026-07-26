@@ -27,6 +27,7 @@ This action needs the following executables:
 ```yaml
 # Depending on your setup, you may have to specify the full URL or use the Github version :
 # - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+# - uses: https://codeberg.org/xlii/upload-artifact-wget@v4
 # - uses: actions/upload-artifact-with-wget@v4-github
 - uses: actions/upload-artifact-with-wget@v4
   with:
@@ -59,13 +60,19 @@ This action needs the following executables:
 ### Upload an Individual File
 
 ```yaml
-steps:
-- run: mkdir -p path/to/artifact
-- run: echo hello > path/to/artifact/world.txt
-- uses: actions/upload-artifact@v4
-  with:
-    name: my-artifact
-    path: path/to/artifact/world.txt
+jobs:
+  UploadingArtifact:
+    runs-on: docker
+    container:
+      image: docker.io/alpine:latest
+    steps:
+      - run: mkdir -p path/to/artifact
+      - run: echo hello > path/to/artifact/world.txt
+      - run: apk add --no-cache wget zip
+      - uses: https://entrepot.xlii.si/actions/upload-artifact-with-wget@v4
+        with:
+          name: my-artifact
+          path: path/to/artifact/world.txt
 ```
 
 ## Miscellaneous

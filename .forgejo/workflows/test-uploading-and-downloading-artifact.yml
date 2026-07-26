@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  GenerateReleaseZipfile:
+  TestUploadingAndDownloadingArtifact:
     runs-on: docker
     container:
       image: entrepot.xlii.si/actions/alpine-wget-git-zip:latest
@@ -24,6 +24,9 @@ jobs:
           echo tutuuuuu >> "tutu tutu.txt"
           echo ratata >> 'tutu tutu*.txt'
           ls -R
+          # Display the wget version for information
+          # (busybox doesn't have a --version flag but shows enough info nonetheless)
+          wget --version
 
       - name: Testing the artifact uploading
         id: "uploading"

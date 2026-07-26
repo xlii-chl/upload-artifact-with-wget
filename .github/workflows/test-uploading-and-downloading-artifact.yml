@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  GenerateReleaseZipfile:
+  TestUploadingAndDownloadingArtifact:
     runs-on: ubuntu-latest
     # Trying to help access to the artifact with the GITHUB_TOKEN at the last step but didn't help.
     #permissions: read-all
@@ -25,6 +25,9 @@ jobs:
           # Github doesn't like special characters.
           #echo ratata >> 'tutu tutu*.txt'
           ls -R
+          # Display the wget version for information
+          # (busybox doesn't have a --version flag but shows enough info nonetheless)
+          wget --version
 
       - name: "Github requires checkout for 'uses: ./' (or we could hard write the repository's URL ?)"
         run: |
